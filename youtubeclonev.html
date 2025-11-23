@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Home Clone</title>
+    <!-- Load Tailwind CSS (This acts as the primary CSS framework) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Custom CSS (Inside <style> tag) -->
+    <style>
+        /* Custom scrollbar styling for a cleaner look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f0f0f; }
+        ::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+        
+        /* Fixed height for the thumbnail container to prevent CLS */
+        .thumbnail-container {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            overflow: hidden;
+        }
+        .thumbnail-container img {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* Sidebar styling for desktop, enabling the width transition */
+        .desktop-sidebar {
+            transition: width 0.3s ease;
+        }
+    </style>
+    
+    <!-- JavaScript Logic (Inside <script> tag) -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'yt-dark': '#0f0f0f',
+                        'yt-red': '#ff0000',
+                        'yt-light-text': '#f1f1f1',
+                        'yt-gray': '#272727',
+                        'yt-icon': '#aaaaaa',
+                        'yt-button': '#3f3f3f',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+
+        // --- Mock Data for the Feed ---
+        const MOCK_VIDEOS = [
+            { id: 1, title: "The State of AI in 2025: Breakthroughs and Challenges", channel: "Tech Future", views: "3.5M", time: "2 days ago", duration: "12:45", thumbnail: "https://placehold.co/480x270/2a64c4/ffffff?text=AI+Research" },
+            { id: 2, title: "15 Minute Full Body Workout for Busy Professionals", channel: "Fitness Guru", views: "1.2M", time: "5 hours ago", duration: "15:00", thumbnail: "https://placehold.co/480x270/cc0000/ffffff?text=Quick+Workout" },
+            { id: 3, title: "How to Master React Hooks: Advanced Concepts", channel: "Web Wizards", views: "890K", time: "1 week ago", duration: "25:30", thumbnail: "https://placehold.co/480x270/383838/ffffff?text=React+Tutorial" },
+            { id: 4, title: "The History of Ancient Rome: Episode 1", channel: "History Deep Dive", views: "4.1M", time: "3 months ago", duration: "45:10", thumbnail: "https://placehold.co/480x270/555555/ffffff?text=Ancient+Rome" },
+            { id: 5, title: "A Day in the Life of a Software Engineer at Google", channel: "Career Path", views: "9.8M", time: "1 month ago", duration: "18:22", thumbnail: "https://placehold.co/480x270/1e1e1e/ffffff?text=Google+Engineer" },
+            { id: 6, title: "Easy Homemade Sourdough Bread Recipe", channel: "The Baker's Corner", views: "2.3M", time: "4 weeks ago", duration: "10:59", thumbnail: "https://placehold.co/480x270/777777/ffffff?text=Sourdough" },
+            { id: 7, title: "The Best PC Gaming Setup of 2025", channel: "Gaming Hub", views: "5.5M", time: "1 day ago", duration: "20:05", thumbnail: "https://placehold.co/480x270/ff8c00/ffffff?text=Gaming+Setup" },
+            { id: 8, title: "Learning Japanese: Top 5 Study Methods", channel: "Language Life", views: "650K", time: "2 months ago", duration: "14:11", thumbnail: "https://placehold.co/480x270/008080/ffffff?text=Japanese+Study" },
+        ];
+
+        // --- Utility Functions ---
+
+        // Function to render the video cards into the main content grid
+        function renderVideoFeed() {
+            const container = document.getElementById('video-grid');
+            if (!container) return;
+            
+            container.innerHTML = MOCK_VIDEOS.map(video => `
+                <div class="cursor-pointer hover:opacity-80 transition-opacity">
+                    <!-- Thumbnail with duration overlay -->
+                    <div class="thumbnail-container rounded-xl">
+                        <img src="${video.thumbnail}" alt="${video.title}" class="rounded-xl">
+                        <span class="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded-md font-medium">${video.duration}</span>
+                    </div>
+
+                    <!-- Video Details -->
+                    <div class="flex mt-3 space-x-3">
+                        <!-- Channel Avatar (Mockup) -->
+                        <img src="https://placehold.co/36x36/${video.id}a${video.id}a${video.id}/ffffff?text=C" alt="Channel" class="w-9 h-9 rounded-full flex-shrink-0">
+                        
+                        <div>
+                            <h2 class="text-base font-semibold text-yt-light-text line-clamp-2">${video.title}</h2>
+                            <p class="text-sm text-gray-400 mt-1 hover:text-white">${video.channel}</p>
+                            <p class="text-sm text-gray-400">${video.views} views • ${video.time}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Function to handle sidebar toggle (for desktop/tablet views)
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const mainContent = document.getElementById('main-content');
+            
+            // We use the `w-60` class presence to determine the expanded state
+            const isExpanded = sidebar.classList.contains('w-60');
+            
+            if (!isExpanded) {
+                // Expand sidebar: w-20 -> w-60, ml-20 -> ml-60
+                sidebar.classList.remove('w-20');
+                sidebar.classList.add('w-60');
+                mainContent.classList.remove('lg:ml-20');
+                mainContent.classList.add('lg:ml-60');
+                // Hide icon-only items and show full text items
+                document.querySelectorAll('.nav-text').forEach(el => el.classList.remove('hidden'));
+                document.querySelectorAll('.nav-icon-only').forEach(el => el.classList.add('hidden'));
+            } else {
+                // Collapse sidebar: w-60 -> w-20, ml-60 -> ml-20
+                sidebar.classList.remove('w-60');
+                sidebar.classList.add('w-20');
+                mainContent.classList.remove('lg:ml-60');
+                mainContent.classList.add('lg:ml-20');
+                // Show icon-only items and hide full text items
+                document.querySelectorAll('.nav-text').forEach(el => el.classList.add('hidden'));
+                document.querySelectorAll('.nav-icon-only').forEach(el => el.classList.remove('hidden'));
+            }
+        }
+
+        function initializeApp() {
+            renderVideoFeed();
+            
+            // Add event listener for the menu button
+            document.getElementById('menu-toggle').addEventListener('click', toggleSidebar);
+            
+            // Initial desktop setup (Sidebar starts collapsed, which is the typical initial YouTube state)
+            if (window.innerWidth >= 1024) {
+                 const sidebar = document.getElementById('sidebar');
+                 const mainContent = document.getElementById('main-content');
+                 
+                 // Initial state: Collapsed (w-20, ml-20), showing only icons
+                 sidebar.classList.add('w-20');
+                 mainContent.classList.add('lg:ml-20');
+                 
+                 // Show icon-only text (used for tooltips/titles)
+                 document.querySelectorAll('.nav-icon-only').forEach(el => el.classList.remove('hidden'));
+                 // Hide full text
+                 document.querySelectorAll('.nav-text').forEach(el => el.classList.add('hidden'));
+
+            } else {
+                 // Mobile/Tablet: Sidebar is hidden, main content has no margin
+                 const mainContent = document.getElementById('main-content');
+                 mainContent.classList.remove('lg:ml-20');
+                 mainContent.classList.remove('lg:ml-60');
+            }
+        }
+
+        window.onload = initializeApp;
+    </script>
+</head>
+
+<body class="bg-yt-dark text-yt-light-text font-sans">
+
+    <!-- Header / Navbar (Sticky Top) -->
+    <header class="sticky top-0 z-20 bg-yt-dark px-4 py-3 shadow-xl">
+        <div class="flex justify-between items-center max-w-full mx-auto">
+            
+            <!-- Logo & Menu -->
+            <div class="flex items-center space-x-4">
+                <button id="menu-toggle" class="p-2 rounded-full hover:bg-yt-gray transition-colors flex-shrink-0">
+                    <!-- Hamburger Menu Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <!-- YouTube Logo Mockup -->
+                <a href="#" class="flex items-center space-x-0.5 cursor-pointer">
+                    <span class="text-2xl font-bold text-yt-red">Play</span><span class="text-2xl font-bold">Tube</span>
+                </a>
+            </div>
+
+            <!-- Search Bar (Desktop/Tablet) -->
+            <div class="hidden md:flex flex-grow max-w-2xl mx-8">
+                <input type="text" placeholder="Search" class="w-full px-5 py-2 text-base bg-yt-dark border border-yt-gray rounded-l-full focus:outline-none focus:border-blue-500 text-yt-light-text">
+                <button class="bg-yt-gray px-6 py-2 rounded-r-full hover:bg-gray-600 transition-colors border border-yt-gray border-l-0">
+                    <!-- Search Icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yt-light-text"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
+            </div>
+
+            <!-- User Icons (Mobile/Desktop) -->
+            <div class="flex items-center space-x-3 md:space-x-4">
+                <!-- Search Icon (Mobile Only) -->
+                <button class="md:hidden p-2 rounded-full hover:bg-yt-gray transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yt-light-text"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </button>
+                <!-- Create/Camera Icon -->
+                <button class="hidden md:block p-2 rounded-full hover:bg-yt-gray transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yt-light-text"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </button>
+                <!-- Notifications Icon -->
+                <button class="hidden md:block p-2 rounded-full hover:bg-yt-gray transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-yt-light-text"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                </button>
+                <!-- User Avatar Placeholder -->
+                <img src="https://placehold.co/32x32/5a5a5a/ffffff?text=V" alt="User" class="w-8 h-8 rounded-full cursor-pointer">
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Layout: Sidebar and Content -->
+    <div class="flex">
+        
+        <!-- Sidebar (LHS) -->
+        <!-- Fixed positioning on desktop, hidden/collapsed on mobile. Starts collapsed (w-20). -->
+        <aside id="sidebar" class="desktop-sidebar fixed top-[56px] left-0 h-[calc(100vh-56px)] bg-yt-dark z-10 overflow-y-auto hidden lg:block border-r border-yt-gray">
+            
+            <!-- Main Navigation Links -->
+            <nav class="pt-4 space-y-1">
+                <!-- Home -->
+                <a href="#" class="flex items-center rounded-lg p-2 mx-3 hover:bg-yt-gray transition-colors bg-yt-gray">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    <span class="ml-6 font-medium nav-text">Home</span>
+                    <!-- Tooltip/icon text for collapsed state -->
+                    <span class="nav-icon-only text-xs mt-1 w-full text-center">Home</span> 
+                </a>
+                
+                <!-- Shorts -->
+                <a href="#" class="flex items-center rounded-lg p-2 mx-3 hover:bg-yt-gray transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="7" x2="12" y2="17"/></svg>
+                    <span class="ml-6 font-medium nav-text">Shorts</span>
+                    <span class="nav-icon-only text-xs mt-1 w-full text-center">Shorts</span>
+                </a>
+                
+                <!-- Subscriptions -->
+                <a href="#" class="flex items-center rounded-lg p-2 mx-3 hover:bg-yt-gray transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H7l5 5zM7 19h10"/></svg>
+                    <span class="ml-6 font-medium nav-text">Subscriptions</span>
+                    <span class="nav-icon-only text-xs mt-1 w-full text-center">Subs</span>
+                </a>
+            </nav>
+            
+            <!-- Separator -->
+            <hr class="border-yt-gray my-4 mx-3 nav-text">
+
+            <!-- You/Library Section -->
+            <nav class="p-3 pt-0 space-y-1 nav-text">
+                <h3 class="text-sm font-semibold text-gray-400 p-2">You</h3>
+                
+                <a href="#" class="flex items-center rounded-lg p-2 hover:bg-yt-gray transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect x="4" y="8" width="4" height="4"/><rect x="16" y="12" width="4" height="4"/></svg>
+                    <span class="ml-6 font-medium">Library</span>
+                </a>
+                <a href="#" class="flex items-center rounded-lg p-2 hover:bg-yt-gray transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.88V20a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5.12"/><circle cx="12" cy="10" r="4"/><path d="M10 14h4"/></svg>
+                    <span class="ml-6 font-medium">History</span>
+                </a>
+            </nav>
+
+        </aside>
+
+        <!-- Main Content Area -->
+        <!-- Starts with lg:ml-20 to account for the collapsed sidebar -->
+        <div id="main-content" class="flex-grow pt-4 px-4 lg:pt-8 transition-all duration-300 min-h-screen">
+
+            <!-- Topic Filters (Sticky Top) -->
+            <div class="sticky top-[56px] z-10 bg-yt-dark py-3 overflow-x-auto whitespace-nowrap border-b border-yt-gray/50">
+                <div class="inline-flex space-x-3">
+                    <!-- Active Filter Button -->
+                    <button class="bg-yt-light-text text-yt-dark px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-300">All</button>
+                    <!-- Inactive Filter Buttons -->
+                    <button class="bg-yt-button text-yt-light-text px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-600">Coding</button>
+                    <button class="bg-yt-button text-yt-light-text px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-600">Gaming</button>
+                    <button class="bg-yt-button text-yt-light-text px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-600">Music</button>
+                    <button class="bg-yt-button text-yt-light-text px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-600">Live</button>
+                    <button class="bg-yt-button text-yt-light-text px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-600">News</button>
+                    <button class="bg-yt-button text-yt-light-text px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-600">Podcasts</button>
+                    <button class="bg-yt-button text-yt-light-text px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-600">History</button>
+                    <button class="bg-yt-button text-yt-light-text px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-600">Recently Uploaded</button>
+                </div>
+            </div>
+
+            <!-- Video Grid -->
+            <!-- Responsive grid layout: 1 column on mobile, 2 on tablet, 3 on larger desktop -->
+            <div id="video-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-10 mt-6 pb-10">
+                <!-- Video cards will be rendered here by JavaScript -->
+            </div>
+
+        </div>
+    </div>
+    
+    <!-- Mobile Bottom Navigation (Simulating Android App Navigation) -->
+    <nav class="fixed bottom-0 left-0 right-0 lg:hidden bg-yt-dark border-t border-yt-gray z-20">
+        <div class="flex justify-around items-center h-14">
+            <!-- Home -->
+            <button class="flex flex-col items-center text-xs text-yt-light-text">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="white" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                <span class="mt-1">Home</span>
+            </button>
+            <!-- Shorts -->
+            <button class="flex flex-col items-center text-xs text-yt-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="7" x2="12" y2="17"/></svg>
+                <span class="mt-1">Shorts</span>
+            </button>
+            <!-- Create/Plus -->
+            <button class="p-2 rounded-full bg-yt-button hover:bg-yt-gray transition-colors text-white">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+            <!-- Subscriptions -->
+            <button class="flex flex-col items-center text-xs text-yt-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H7l5 5zM7 19h10"/></svg>
+                <span class="mt-1">Subscriptions</span>
+            </button>
+            <!-- Library -->
+            <button class="flex flex-col items-center text-xs text-yt-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="8" width="4" height="4"/><rect x="16" y="12" width="4" height="4"/><path d="M16 20V4a2 2 0 0 0-2-2H10a2 2 0 0 0-2 2v16"/></svg>
+                <span class="mt-1">Library</span>
+            </button>
+        </div>
+    </nav>
+
+</body>
+</html>
